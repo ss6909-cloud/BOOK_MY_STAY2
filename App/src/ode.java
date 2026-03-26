@@ -9,11 +9,12 @@
  * Use Case 4 - Room Search & Availability Check
  * Use Case 5 - Booking Request Queue (FIFO)
  * Use Case 6 - Reservation Confirmation & Room Allocation
+ * Use Case 7 - Add-On Service Selection
  *
- * Demonstrates OOP, centralized inventory, search, booking queue, and safe allocation.
+ * Demonstrates OOP, centralized inventory, search, booking queue, safe allocation, and add-on service management.
  *
  * @author YourName
- * @version 6.0
+ * @version 7.0
  */
 
 import java.util.*;
@@ -135,6 +136,7 @@ class SearchService {
 class Reservation {
     private String guestName;
     private String roomType;
+    private String roomID; // assigned after confirmation
 
     public Reservation(String guestName, String roomType) {
         this.guestName = guestName;
@@ -143,6 +145,8 @@ class Reservation {
 
     public String getGuestName() { return guestName; }
     public String getRoomType() { return roomType; }
+    public void setRoomID(String roomID) { this.roomID = roomID; }
+    public String getRoomID() { return roomID; }
 
     public void displayReservation() {
         System.out.println("Guest Name      : " + guestName);
@@ -217,12 +221,64 @@ class BookingService {
         // Update inventory
         inventory.updateAvailability(roomType, available - 1);
 
+        // Save room ID in reservation
+        reservation.setRoomID(roomID);
+
         // Confirmation message
         System.out.println("\nReservation Confirmed!");
         System.out.println("Guest Name : " + reservation.getGuestName());
         System.out.println("Room Type  : " + roomType);
         System.out.println("Room ID    : " + roomID);
         System.out.println("Remaining " + roomType + " : " + inventory.getAvailability(roomType));
+    }
+}
+
+// ===============================
+// Use Case 7: Add-On Service
+// ===============================
+class Service {
+    private String name;
+    private double price;
+
+    public Service(String name, double price) {
+        this.name = name;
+        this.price = price;
+    }
+
+    public String getName() { return name; }
+    public double getPrice() { return price; }
+
+    public void displayService() {
+        System.out.println("Service Name : " + name);
+        System.out.println("Price        : $" + price);
+    }
+}
+
+class AddOnServiceManager {
+    private Map<String, List<Service>> reservationServices; // reservationID -> list of services
+
+    public AddOnServiceManager() { reservationServices = new HashMap<>(); }
+
+    public void addServiceToReservation(String roomID, Service service) {
+        reservationServices.putIfAbsent(roomID, new ArrayList<>());
+        reservationServices.get(roomID).add(service);
+        System.out.println("Added service " + service.getName() + " to reservation " + roomID);
+    }
+
+    public void displayServices(String roomID) {
+        List<Service> services = reservationServices.get(roomID);
+        if (services == null || services.isEmpty()) {
+            System.out.println("No add-on services for reservation " + roomID);
+            return;
+        }
+        System.out.println("---- Add-On Services for " + roomID + " ----");
+        double total = 0;
+        for (Service s : services) {
+            s.displayService();
+            total += s.getPrice();
+            System.out.println("---------------------------------------");
+        }
+        System.out.println("Total Add-On Cost: $" + total);
     }
 }
 
@@ -240,7 +296,7 @@ public class ode {
         System.out.println("   Welcome to Book My Stay Application ");
         System.out.println("=======================================");
         System.out.println("Application Name : Hotel Booking System");
-        System.out.println("Version          : v6.0");
+        System.out.println("Version          : v7.0");
         System.out.println("=======================================\n");
 
         // ===============================
@@ -288,13 +344,39 @@ public class ode {
         BookingService bookingService = new BookingService(inventory);
 
         System.out.println("\n---- Processing Booking Requests ----\n");
+        List<Reservation> confirmedReservations = new ArrayList<>();
         while (!bookingQueue.isEmpty()) {
             Reservation res = bookingQueue.processNextRequest();
             bookingService.confirmReservation(res);
+            confirmedReservations.add(res);
         }
 
         System.out.println("\nFinal Inventory After Allocations:");
         inventory.displayInventory();
+
+        // ===============================
+        // Use Case 7: Add-On Services
+        // ===============================
+        AddOnServiceManager addOnManager = new AddOnServiceManager();
+        Service breakfast = new Service("Breakfast", 15.0);
+        Service spa = new Service("Spa Access", 40.0);
+        Service airport = new Service("Airport Pickup", 25.0);
+
+        // Example: attach add-ons to confirmed reservations
+        for (Reservation res : confirmedReservations) {
+            if (res.getRoomID() != null) {
+                addOnManager.addServiceToReservation(res.getRoomID(), breakfast);
+                addOnManager.addServiceToReservation(res.getRoomID(), spa);
+            }
+        }
+
+        // Display add-on services for a specific reservation
+        System.out.println();
+        for (Reservation res : confirmedReservations) {
+            if (res.getRoomID() != null) {
+                addOnManager.displayServices(res.getRoomID());
+            }
+        }
 
         System.out.println("\nThank you for using Book My Stay Application!");
     }
