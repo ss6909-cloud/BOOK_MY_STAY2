@@ -10,11 +10,13 @@
  * Use Case 5 - Booking Request Queue (FIFO)
  * Use Case 6 - Reservation Confirmation & Room Allocation
  * Use Case 7 - Add-On Service Selection
+ * Use Case 8 - Booking History & Reporting
  *
- * Demonstrates OOP, centralized inventory, search, booking queue, safe allocation, and add-on service management.
+ * Demonstrates OOP, centralized inventory, search, booking queue, safe allocation,
+ * add-on service management, and historical tracking.
  *
- * @author YourName
- * @version 7.0
+ * Author: YourName
+ * Version: 8.0
  */
 
 import java.util.*;
@@ -68,7 +70,6 @@ class SuiteRoom extends Room {
 // Use Case 3: Inventory Class
 // ===============================
 class RoomInventory {
-
     private Map<String, Integer> inventory;
 
     public RoomInventory() {
@@ -151,6 +152,7 @@ class Reservation {
     public void displayReservation() {
         System.out.println("Guest Name      : " + guestName);
         System.out.println("Requested Room  : " + roomType);
+        if (roomID != null) System.out.println("Room ID         : " + roomID);
     }
 }
 
@@ -283,6 +285,41 @@ class AddOnServiceManager {
 }
 
 // ===============================
+// Use Case 8: Booking History & Reporting
+// ===============================
+class BookingHistory {
+    private List<Reservation> history;
+
+    public BookingHistory() { history = new ArrayList<>(); }
+
+    public void recordReservation(Reservation reservation) {
+        history.add(reservation);
+    }
+
+    public List<Reservation> getHistory() { return new ArrayList<>(history); }
+}
+
+class BookingReportService {
+    private BookingHistory history;
+
+    public BookingReportService(BookingHistory history) { this.history = history; }
+
+    public void displayReport() {
+        System.out.println("\n==== Booking History & Report ====\n");
+        List<Reservation> bookings = history.getHistory();
+        if (bookings.isEmpty()) {
+            System.out.println("No confirmed reservations yet.");
+            return;
+        }
+
+        for (Reservation r : bookings) {
+            r.displayReservation();
+            System.out.println("---------------------------------------");
+        }
+    }
+}
+
+// ===============================
 // Main Class
 // ===============================
 public class ode {
@@ -296,7 +333,7 @@ public class ode {
         System.out.println("   Welcome to Book My Stay Application ");
         System.out.println("=======================================");
         System.out.println("Application Name : Hotel Booking System");
-        System.out.println("Version          : v7.0");
+        System.out.println("Version          : v8.0");
         System.out.println("=======================================\n");
 
         // ===============================
@@ -342,13 +379,17 @@ public class ode {
         // Use Case 6: Confirm Reservations / Allocate Rooms
         // ===============================
         BookingService bookingService = new BookingService(inventory);
+        BookingHistory bookingHistory = new BookingHistory(); // Use Case 8: history
+        List<Reservation> confirmedReservations = new ArrayList<>();
 
         System.out.println("\n---- Processing Booking Requests ----\n");
-        List<Reservation> confirmedReservations = new ArrayList<>();
         while (!bookingQueue.isEmpty()) {
             Reservation res = bookingQueue.processNextRequest();
             bookingService.confirmReservation(res);
-            confirmedReservations.add(res);
+            if (res.getRoomID() != null) {
+                confirmedReservations.add(res);
+                bookingHistory.recordReservation(res); // record in history
+            }
         }
 
         System.out.println("\nFinal Inventory After Allocations:");
@@ -370,13 +411,19 @@ public class ode {
             }
         }
 
-        // Display add-on services for a specific reservation
+        // Display add-on services
         System.out.println();
         for (Reservation res : confirmedReservations) {
             if (res.getRoomID() != null) {
                 addOnManager.displayServices(res.getRoomID());
             }
         }
+
+        // ===============================
+        // Use Case 8: Booking History & Report
+        // ===============================
+        BookingReportService reportService = new BookingReportService(bookingHistory);
+        reportService.displayReport();
 
         System.out.println("\nThank you for using Book My Stay Application!");
     }
