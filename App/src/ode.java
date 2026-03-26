@@ -7,18 +7,16 @@
  * Use Case 2 - Room Modeling
  * Use Case 3 - Centralized Inventory (HashMap)
  * Use Case 4 - Room Search & Availability Check
- * Use Case 5 - Booking Request Queue (First-Come-First-Served)
+ * Use Case 5 - Booking Request Queue (FIFO)
+ * Use Case 6 - Reservation Confirmation & Room Allocation
  *
- * Demonstrates OOP, inventory management, search, and fair request handling.
+ * Demonstrates OOP, centralized inventory, search, booking queue, and safe allocation.
  *
  * @author YourName
- * @version 5.0
+ * @version 6.0
  */
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Queue;
-import java.util.LinkedList;
+import java.util.*;
 
 // ===============================
 // Abstract Room Class
@@ -96,7 +94,6 @@ class RoomInventory {
         }
     }
 
-    // Defensive copy for read-only access
     public Map<String, Integer> getInventory() {
         return new HashMap<>(inventory);
     }
@@ -148,22 +145,24 @@ class Reservation {
     public String getRoomType() { return roomType; }
 
     public void displayReservation() {
-        System.out.println("Guest Name : " + guestName);
-        System.out.println("Requested Room : " + roomType);
+        System.out.println("Guest Name      : " + guestName);
+        System.out.println("Requested Room  : " + roomType);
     }
 }
 
 class BookingQueue {
     private Queue<Reservation> queue;
 
-    public BookingQueue() {
-        queue = new LinkedList<>();
-    }
+    public BookingQueue() { queue = new LinkedList<>(); }
 
     public void addRequest(Reservation reservation) {
         queue.add(reservation);
         System.out.println("Booking request added for guest: " + reservation.getGuestName());
     }
+
+    public Reservation processNextRequest() { return queue.poll(); }
+
+    public boolean isEmpty() { return queue.isEmpty(); }
 
     public void displayQueue() {
         System.out.println("\n---- Current Booking Requests (FIFO) ----\n");
@@ -175,13 +174,55 @@ class BookingQueue {
             System.out.println("No booking requests in the queue.");
         }
     }
+}
 
-    public Reservation processNextRequest() {
-        return queue.poll(); // remove and return head of queue
+// ===============================
+// Use Case 6: Booking Service / Room Allocation
+// ===============================
+class BookingService {
+    private RoomInventory inventory;
+    private Map<String, Set<String>> allocatedRooms; // roomType -> set of roomIDs
+    private int roomCounter; // for generating unique IDs
+
+    public BookingService(RoomInventory inventory) {
+        this.inventory = inventory;
+        this.allocatedRooms = new HashMap<>();
+        this.roomCounter = 100; // starting ID
     }
 
-    public boolean isEmpty() {
-        return queue.isEmpty();
+    public void confirmReservation(Reservation reservation) {
+        String roomType = reservation.getRoomType();
+        int available = inventory.getAvailability(roomType);
+
+        if (available <= 0) {
+            System.out.println("Sorry, " + roomType + " is fully booked for guest " + reservation.getGuestName());
+            return;
+        }
+
+        // Generate unique room ID
+        roomCounter++;
+        String roomID = roomType.replaceAll(" ", "") + "-" + roomCounter;
+
+        // Ensure allocatedRooms map contains set
+        allocatedRooms.putIfAbsent(roomType, new HashSet<>());
+        Set<String> allocatedSet = allocatedRooms.get(roomType);
+
+        // Assign room ID and prevent duplicates
+        while (allocatedSet.contains(roomID)) {
+            roomCounter++;
+            roomID = roomType.replaceAll(" ", "") + "-" + roomCounter;
+        }
+        allocatedSet.add(roomID);
+
+        // Update inventory
+        inventory.updateAvailability(roomType, available - 1);
+
+        // Confirmation message
+        System.out.println("\nReservation Confirmed!");
+        System.out.println("Guest Name : " + reservation.getGuestName());
+        System.out.println("Room Type  : " + roomType);
+        System.out.println("Room ID    : " + roomID);
+        System.out.println("Remaining " + roomType + " : " + inventory.getAvailability(roomType));
     }
 }
 
@@ -199,7 +240,7 @@ public class ode {
         System.out.println("   Welcome to Book My Stay Application ");
         System.out.println("=======================================");
         System.out.println("Application Name : Hotel Booking System");
-        System.out.println("Version          : v5.0");
+        System.out.println("Version          : v6.0");
         System.out.println("=======================================\n");
 
         // ===============================
@@ -230,17 +271,30 @@ public class ode {
         searchService.searchAvailableRooms(allRooms);
 
         // ===============================
-        // Use Case 5: Booking Requests (FIFO)
+        // Use Case 5: Booking Requests
         // ===============================
         BookingQueue bookingQueue = new BookingQueue();
-
-        // Sample booking requests
         bookingQueue.addRequest(new Reservation("Alice", "Single Room"));
         bookingQueue.addRequest(new Reservation("Bob", "Suite Room"));
         bookingQueue.addRequest(new Reservation("Charlie", "Double Room"));
+        bookingQueue.addRequest(new Reservation("David", "Single Room"));
+        bookingQueue.addRequest(new Reservation("Eve", "Suite Room"));
 
-        // Display queue
         bookingQueue.displayQueue();
+
+        // ===============================
+        // Use Case 6: Confirm Reservations / Allocate Rooms
+        // ===============================
+        BookingService bookingService = new BookingService(inventory);
+
+        System.out.println("\n---- Processing Booking Requests ----\n");
+        while (!bookingQueue.isEmpty()) {
+            Reservation res = bookingQueue.processNextRequest();
+            bookingService.confirmReservation(res);
+        }
+
+        System.out.println("\nFinal Inventory After Allocations:");
+        inventory.displayInventory();
 
         System.out.println("\nThank you for using Book My Stay Application!");
     }
